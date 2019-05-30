@@ -1,0 +1,206 @@
+import math
+import numpy as np
+
+from ROOT import TH1F
+
+from utils import create_name_hist, interpolate_parab, draw_hists
+
+class OptimalFilterNxM:
+
+    def __init__( self, dt, t_pre, U, V ):
+
+        # dt is width of the time bins
+        # t_pre is the interval of time between the start of the trace and the trigger
+        # Note that t_pre is positive
+        # U is the list of templates
+        # V is the cross-correlation function of the noise
+
+        self.dt = dt
+        self.t_pre = t_pre
+        self.n_trig = int( t_pre/dt )
+
+        self.num_templates = len( U )
+        self.num_channels = len( U[ 0 ] )
+        self.num_bins_t = len( U[ 0 ][ 0 ] )
+
+        self.loop_templates = range( self.num_templates )
+        self.loop_channels = range( self.num_channels )
+        self.loop_bins_t = range( self.num_bins_t )
+
+        self.U = [ [ [ U[ i ][ a ][ n ] for n in self.loop_bins_t ] for a in self.loop_channels ] for i in self.loop_templates ]
+        self.N = [ sum( [ sum( U[ i ][ a ] ) for a in self.loop_channels ] ) for i in self.loop_templates ]
+
+        U_fft = []
+
+        for i in range( len( U ) ):
+            U_fft.append( [] )
+
+            for a in range( len( U[ i ] ) ):
+                U_fft[ -1 ].append( np.fft.fft( U[ i ][ a ] ).tolist() )
+
+        self.V_inv = [ [ [] for b in self.loop_channels ] for a in self.loop_channels ]
+
+        for n in self.loop_bins_t:
+            V_n_inv = np.linalg.inv( [ [ V[ a ][ b ][ n ] for b in self.loop_channels ] for a in self.loop_channels ] )
+
+            for a in self.loop_channels:
+                for b in self.loop_channels:
+                    self.V_inv[ a ][ b ].append( V_n_inv[ a ][ b ] )
+
+        self.F = []
+
+        for i in self.loop_templates:
+            self.F.append( [] )
+
+            for a in self.loop_channels:
+                self.F[ -1 ].append( [ 0.0 for n in self.loop_bins_t ] )
+
+                for b in self.loop_channels:
+                    for n in self.loop_bins_t:
+                        self.F[ -1 ][ -1 ][ n ] += np.conj( U_fft[ i ][ b ][ n ] )*self.V_inv[ b ][ a ][ n ]
+
+        self.P = []
+
+        for i in self.loop_templates:
+            self.P.append( [] )
+
+            for j in self.loop_templates:
+                self.P[ -1 ].append( 0.0 )
+
+                for a in self.loop_channels:
+                    for b in self.loop_channels:
+                        for n in self.loop_bins_t:
+                            self.P[ -1 ][ -1 ] += np.conj( U_fft[ i ][ a ][ n ] )*U_fft[ j ][ b ][ n ]*self.V_inv[ a ][ b ][ n ]
+
+        self.P = np.real( self.P ).tolist()
+        self.P_inv = np.linalg.inv( self.P ).tolist()
+
+        self.S_fft = [ None for a in self.loop_channels ]
+
+        self.result = { 'A0'    : [ None for i in self.loop_templates ],
+                        'chisq0': None                                 ,
+                        'E0'    : None                                 ,
+                        't0'    : None                                 ,
+                        'A'     : [ None for i in self.loop_templates ],
+                        'chisq' : None                                 ,
+                        'E'     : None                                  }
+
+    def Execute( self, S ):
+        for a in self.loop_channels:
+            self.S_fft[ a ] = np.fft.fft( S[ a ] ).tolist()
+
+        Q = []
+
+        for i in self.loop_templates:
+            coefs_fft = [ 0.0 for n in self.loop_bins_t ]
+
+            for a in self.loop_channels:
+                for n in self.loop_bins_t:
+                    coefs_fft[ n ] += self.F[ i ][ a ][ n ]*self.S_fft[ a ][ n ]
+
+            Q.append( np.real( np.fft.ifft( coefs_fft ) ).tolist() )
+
+        funcs_a = []
+
+        for i in self.loop_templates:
+            funcs_a.append( [ 0.0 for n in self.loop_bins_t ] )
+
+            for j in self.loop_templates:
+                for n in self.loop_bins_t:
+                    funcs_a[ -1 ][ n ] += self.P_inv[ i ][ j ]*Q[ j ][ n ]
+
+            for n in self.loop_bins_t:
+                funcs_a[ -1 ][ n ] *= np.float64( self.num_bins_t )
+
+        for i in self.loop_templates:
+            self.result[ 'A0' ][ i ] = float( funcs_a[ i ][ 0 ] )
+
+        chisq_base = 0.0
+
+        for a in self.loop_channels:
+            for b in self.loop_channels:
+                for n in self.loop_bins_t:
+                    chisq_base += np.conj( self.S_fft[ a ][ n ] )*self.S_fft[ b ][ n ]*self.V_inv[ a ][ b ][ n ]
+
+        chisq_base = chisq_base.real
+
+        func_chisq = [ chisq_base for n in self.loop_bins_t ]
+
+        for i in self.loop_templates:
+            for j in self.loop_templates:
+                for n in self.loop_bins_t:
+                    func_chisq[ n ] -= funcs_a[ i ][ n ]*funcs_a[ j ][ n ]*self.P[ i ][ j ]
+
+        self.result[ 'chisq0' ] = float( func_chisq[ 0 ] )
+        self.result[ 'E0'     ] = float( sum( [ self.result[ 'A0' ][ i ]*self.N[ i ] for i in self.loop_templates ] ) )
+
+        n_min = func_chisq.index( min( func_chisq ) )
+
+        if n_min >= self.num_bins_t-self.n_trig:
+            n_min -= self.num_bins_t
+
+        if n_min > -self.n_trig and n_min < ( self.num_bins_t-self.n_trig )-1:
+            n_prev = n_min-1
+            n_post = ( n_min+1 )%self.num_bins_t
+
+            parab_chisq = interpolate_parab( func_chisq[ n_prev ], func_chisq[ n_min ], func_chisq[ n_post ] )
+            dn0 = -parab_chisq[ 1 ]/( 2.0*parab_chisq[ 0 ] )
+
+            self.result[ 't0' ] = float( ( 0.5+float( n_min )+dn0 )*self.dt )
+
+            for i in self.loop_templates:
+                parab_a = interpolate_parab( funcs_a[ i ][ n_prev ], funcs_a[ i ][ n_min ], funcs_a[ i ][ n_post ] )
+                self.result[ 'A' ][ i ] = float( ( parab_a[ 0 ]*( dn0**2 ) )+( parab_a[ 1 ]*dn0 )+parab_a[ 2 ] )
+
+            self.result[ 'chisq' ] = float( parab_chisq[ 2 ]-( ( parab_chisq[ 1 ]**2 )/( 4.0*parab_chisq[ 0 ] ) ) )
+            self.result[ 'E'     ] = float( sum( [ self.result[ 'A' ][ i ]*self.N[ i ] for i in self.loop_templates ] ) )
+
+        else:
+            self.result[ 't0' ] = float( ( 0.5+float( n_min ) )*self.dt )
+
+            for i in self.loop_templates:
+                self.result[ 'A' ][ i ] = float( funcs_a[ i ][ n_min ] )
+
+            self.result[ 'chisq' ] = float( func_chisq[ n_min ] )
+            self.result[ 'E'     ] = float( sum( [ self.result[ 'A' ][ i ]*self.N[ i ] for i in self.loop_templates ] ) )
+
+        return self.result
+
+    def reset_result( self ):
+        self.result[ 'A0'     ] = [ None for i in self.loop_templates ]
+        self.result[ 'chisq0' ] = None
+        self.result[ 'E0'     ] = None
+        self.result[ 't0'     ] = None
+        self.result[ 'A'      ] = [ None for i in self.loop_templates ]
+        self.result[ 'chisq'  ] = None
+        self.result[ 'E'      ] = None
+
+        return True
+
+    def Draw( self, path, event_count ):
+        if type( self.S_fft[ 0 ] ) != list:
+            return False
+
+        if type( self.result[ 'A' ][ 0 ] ) != float:
+            return False
+
+        hists = [ TH1F( create_name_hist(), '', self.num_bins_t, 0.0, float( self.num_bins_t ) ),
+                  TH1F( create_name_hist(), '', self.num_bins_t, 0.0, float( self.num_bins_t ) ) ]
+
+        S = [ np.real( np.fft.ifft( self.S_fft[ a ] ) ).tolist() for a in self.loop_channels ]
+
+        for a in self.loop_channels:
+            for n in self.loop_bins_t:
+                hists[ 0 ].SetBinContent( n+1, float( S[ a ][ n ] )                                                                  )
+                hists[ 1 ].SetBinContent( n+1, sum( [ self.result[ 'A' ][ i ]*self.U[ i ][ a ][ n ] for i in self.loop_templates ] ) )
+
+            filename = path+'/'+self.__class__.__name__+'_pulse_'+str( event_count )+'_'+str( a+1 )+'.png'
+            draw_hists( hists, [ 3, 2 ], 'Time (bin)', '', filename )
+
+            for hist in hists:
+                hist.Reset()
+
+        for hist in hists:
+            hist.Delete()
+
+        return True

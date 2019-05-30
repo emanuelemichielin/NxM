@@ -1,0 +1,146 @@
+import math
+import numpy as np
+
+from ROOT import TGraph, TH1F, TLine
+from scipy.signal import find_peaks, wiener, peak_widths
+
+from OptimalFilterNxM import OptimalFilterNxM
+
+from utils import create_name_hist, get_angle_std, check_angle
+
+class OFManagerNxM:
+
+    def __init__( self, dt, t_pre, templates, V, calc_r, calc_theta,  E_min, E_max, map_bins_part ):
+
+        # dt is width of the time bins
+        # t_pre is the interval of time between the start of the trace and the trigger
+        # Note that t_pre is positive
+        # V is the cross-correlation function of the noise
+        # calc_r and calc_theta are functors that calculate the radial and azimuthal partitions given the channel amplitudes
+        # E_min and E_max define the bin in the total energy to which the templates correspond
+        # Therefore, only events with total energy between E_min and E_max will be processed by the NxM filter
+        # map_bins_part is the structure that, ultimately, relates each bin in the partition space with the corresponding template
+        # It also holds the information about the bin limits
+        # See comments in TemplateGeneratorNxM.py for more details, in particular those regarding the sideband bins
+
+        self.num_templates = len( templates )
+        self.num_channels = len( templates[ 0 ] )
+        self.num_bins_t = len( templates[ 0 ][ 0 ] )
+
+        self.loop_templates = range( self.num_templates )
+        self.loop_channels = range( self.num_channels )
+        self.loop_bins_t = range( self.num_bins_t )
+
+        self.J = [ [ V[ a ][ a ][ n ] for n in self.loop_bins_t ] for a in self.loop_channels ]
+
+        self.calc_r = calc_r
+        self.calc_theta = calc_theta
+
+        self.E_min = E_min
+        self.E_max = E_max
+
+        self.map_bins_part = []
+        self.list_of = []
+
+        for i in range( len( map_bins_part ) ):
+
+            # The reason of the following requirement is to loop only on the original bins of the partition space, that is, only those 
+            # defined explicitly by the user
+
+            if i%3 == 0:
+                self.map_bins_part.append( ( map_bins_part[ i ][ 0 ],
+                                             map_bins_part[ i ][ 1 ],
+                                             []                     ) )
+
+                for j in range( len( map_bins_part[ i ][ 2 ] ) ):
+                    if map_bins_part[ i ][ 2 ][ j ][ 2 ] > -1:
+                        self.map_bins_part[ -1 ][ 2 ].append( ( map_bins_part[ i ][ 2 ][ j ][ 0 ],
+                                                                map_bins_part[ i ][ 2 ][ j ][ 1 ],
+                                                                len( self.list_of )               ) )
+
+                        list_adjacent_bins_indices = []
+
+                        if len( map_bins_part[ i ][ 2 ] ) > 1:
+                            j_clockw = j-1
+
+                            if map_bins_part[ i ][ 2 ][ j_clockw ][ 2 ] > -1:
+
+                                # This is the adjacent bin that is situated clockwise from the current original bin
+
+                                list_adjacent_bins_indices.append( map_bins_part[ i ][ 2 ][ j_clockw ][ 2 ] )
+
+                            if len( map_bins_part[ i ][ 2 ] ) > 2:
+                                j_anticw = ( j+1 )%len( map_bins_part[ i ][ 2 ] )
+
+                                if map_bins_part[ i ][ 2 ][ j_anticw ][ 2 ] > -1:
+
+                                    # This is the adjacent bin that is situated anticlockwise from the current original bin
+
+                                    list_adjacent_bins_indices.append( map_bins_part[ i ][ 2 ][ j_anticw ][ 2 ] )
+
+                        if i > 0:
+                            i_bot = i-1
+
+                            if map_bins_part[ i_bot ][ 2 ][ j ][ 2 ] > -1:
+
+                                # This is the "botton" sideband bin associated to the current original bin
+
+                                list_adjacent_bins_indices.append( map_bins_part[ i_bot ][ 2 ][ j ][ 2 ] )
+
+                        if i < len( map_bins_part )-1:
+                            i_top = i+1
+
+                            if map_bins_part[ i_top ][ 2 ][ j ][ 2 ] > -1:
+
+                                # This is the "top" sideband bin associated to the current original bin
+
+                                list_adjacent_bins_indices.append( map_bins_part[ i_top ][ 2 ][ j ][ 2 ] )
+
+                        U = [ templates[ map_bins_part[ i ][ 2 ][ j ][ 2 ] ] ]
+
+                        for k in list_adjacent_bins_indices:
+                            U.append( templates[ k ] )
+
+                        self.list_of.append( OptimalFilterNxM( dt, t_pre, U, V ) )
+
+                    else:
+                        self.map_bins_part[ -1 ][ 2 ].append( ( map_bins_part[ i ][ 2 ][ j ][ 0 ],
+                                                                map_bins_part[ i ][ 2 ][ j ][ 1 ],
+                                                                -1                                ) )
+
+        self.last_of_index = -1
+
+    def ProcessEvent( self, S ):
+        amps = []
+
+        noise_w = np.array([self.J[a][a] for a in range(len(S))])
+        amps = [ sum( wiener( S[ a ], mysize=75, noise = noise_w[a].real ) ) for a in range(len(S)) ]
+
+        E = sum( amps )
+
+        if E < self.E_min or E > self.E_max:
+            return False
+
+        r = self.calc_r( amps )
+        theta = get_angle_std( self.calc_theta( amps ) )
+
+        for i in range( len( self.map_bins_part ) ):
+            if r > self.map_bins_part[ i ][ 0 ] and r < self.map_bins_part[ i ][ 1 ]:
+                for j in range( len( self.map_bins_part[ i ][ 2 ] ) ):
+                    if check_angle( theta, self.map_bins_part[ i ][ 2 ][ j ][ 0 ], self.map_bins_part[ i ][ 2 ][ j ][ 1 ] ):
+                        self.last_of_index = self.map_bins_part[ i ][ 2 ][ j ][ 2 ]
+
+                        if self.last_of_index > -1:
+                            return self.list_of[ self.last_of_index ].Execute( S )
+
+                        else:
+                            return None                            
+
+        self.last_of_index = -1
+        return None
+
+    def Draw( self, path, event_count ):
+        if self.last_of_index < 0:
+            return False
+
+        return self.list_of[ self.last_of_index ].Draw( path, event_count )

@@ -1,0 +1,22 @@
+apply_filters
+The file is: /gpfs/slac/staas/fs1/g/supercdms//data/CDMS/SLAC/R52/Raw/09190411_2241/09190411_2241_F0035.mid.gz
+
+Opened raw midas file: /gpfs/slac/staas/fs1/g/supercdms//data/CDMS/SLAC/R52/Raw/09190411_2241/09190411_2241_F0035.mid.gz
+The file is: /gpfs/slac/staas/fs1/g/supercdms//data/CDMS/SLAC/R52/Raw/09190411_2241/09190411_2241_F0035.mid.gz
+
+Opened raw midas file: /gpfs/slac/staas/fs1/g/supercdms//data/CDMS/SLAC/R52/Raw/09190411_2241/09190411_2241_F0035.mid.gz
+Event 1
+Event 2
+Event 3
+Event 4
+Event 5
+Traceback (most recent call last):
+  File "run.py", line 270, in <module>
+    apply_filters( PATH+'/noise_psds.gz', PATH+'/templates.gz', filepath, series, PATH+'/root/reco.root' )
+  File "run.py", line 208, in apply_filters
+    man.Draw( PATH+'/png', event_count )
+  File "../core/OFManagerNxM.py", line 150, in Draw
+    return self.list_of[ self.last_of_index ].Draw( path, event_count )
+  File "../core/OptimalFilterNxM.py", line 198, in Draw
+    draw_hists( hists, [ 3, 2 ], 'Time (bin)', '', filename )
+TypeError: draw_hists() missing 1 required positional argument: 'a'

@@ -1,0 +1,27 @@
+import math
+
+vec_r_lim = [ 1., 2.2, 2.6, 5 ]
+
+mat_theta_lim = [ [ coef*math.pi for coef in [  ] ],
+                  [ coef*math.pi for coef in [  ] ], 
+                  [ coef*math.pi for coef in [  ] ], 
+                  ]
+
+for i in range( len( mat_theta_lim ) ):
+    sym_theta_lims = []
+
+    for j in range( len( mat_theta_lim[ i ] ) ):
+        sym_theta_lims.append( -( mat_theta_lim[ i ][ j ]+( 2.0*math.pi/3.0 ) ) )
+        sym_theta_lims.append( mat_theta_lim[ i ][ j ]-( 2.0*math.pi/3.0 )      )
+        sym_theta_lims.append( -mat_theta_lim[ i ][ j ]                         )
+        sym_theta_lims.append( mat_theta_lim[ i ][ j ]+( 2.0*math.pi/3.0 )      )
+        sym_theta_lims.append( -( mat_theta_lim[ i ][ j ]-( 2.0*math.pi/3.0 ) ) )
+
+    for theta in sym_theta_lims:
+        mat_theta_lim[ i ].append( theta )
+
+    mat_theta_lim[ i ].append( -math.pi/3.0 )
+    mat_theta_lim[ i ].append( math.pi/3.0  )
+    mat_theta_lim[ i ].append( math.pi      )
+
+    mat_theta_lim[ i ].sort()
