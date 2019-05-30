@@ -23,4 +23,4 @@ The DataReader OpenFile method requires the path and the name of files to proces
 
 A very raw, event-by-event, selection is done to get rid of "bad" events (pile up, muon tails and saturated events). This is absolutely preliminary, and need to be improved. (see autocus of QETpy package for example).
 
-Everything, up to the filter application, seems to work. I would much appreciated if you can start looking at this last step and why it is giving random results (Degidefitely to doubleck if the templates are appropiate).
+Everything, up to the filter application, seems to work. I would much appreciated if you can start looking at this last step and why it is giving random results (to double check if the templates are appropiate).
