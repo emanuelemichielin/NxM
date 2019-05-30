@@ -4,24 +4,12 @@ This software implements an algorithm to reconstruct the phonon signal from dete
 2. Calculate templates from data.
 3. Apply the NxM filter.
 
-The only requirements are numpy and pyROOT (available on galba.stanford.edu). If working on galba.stanford.edu, the environment can be set up by sourcing the file ``setup_galba.sh``,
+The only requirements are numpy and pyROOT. I reccomend to work on slac cluster, and to get python 3 and root6
 
-``$ source setup_galba.sh``
+"$ source /nfs/slac/g/supercdms/analysis/anaconda3/bin/activate"
 
-A simple Monte Carlo example is available under the directory ``example_simple/``, that can be executed as follows:
+To run the code, go to data_analysis and then 
 
-``$ cd example_simple``
-``$ python run.py``
-
-In general, the user will be able to use this example for his own purposes by doing the following modifications:
-
-1. Adapt ``example_simple/DataReader.py`` in order to read the data files of interest.
-2. Re-define the radial and azimuthal partitions in ``core/calc_r.py`` and ``core/calc_theta.py``.
-3. Re-define the segmentation of the partition space in ``example_simple/bins_part.py``.
-
-A more advanced example is available under the directory ``example_best_mctruth/``, that can be executed as follows:
-
-``$ cd example_best_mctruth``
 ``$ python run.py``
 
 Some important classes are:
@@ -31,4 +19,8 @@ Some important classes are:
 3. ``core/OFManagerNxM.py``, that handles the pre-filter step.
 4. ``core/OptimalFilterNxM.py``, that applies the NxM filter.
 
-For additional information please see the comments in the code, and the note http://titus.stanford.edu/cdms_restricted/elias/2018_12_06-nxm_filter/index.html.
+The DataReader OpenFile method requires the path and the name of files to process (you can just give the path and it will process everything) and the number of events (if 0 or non-given will process all the events). The first ~15 dumps are randoms, the other are triggered events. Last week I have learned how to get the trigger info from the event, I need to implemented that to be automatic.
+
+A very raw, event-by-event, selection is done to get rid of "bad" events (pile up, muon tails and saturated events). This is absolutely preliminary, and need to be improved. (see autocus of QETpy package for example).
+
+Everything, up to the filter application, seems to work. I would much appreciated if you can start looking at this last step and why it is giving random results (Degidefitely to doubleck if the templates are appropiate).
