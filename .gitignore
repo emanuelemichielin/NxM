@@ -1,4 +1,6 @@
 data_analysis/png/
 data_analysis/root/
+data_analysis/*.gz
 *.svg
 *.png
+*.gz

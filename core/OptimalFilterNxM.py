@@ -3,11 +3,14 @@ import numpy as np
 
 from ROOT import TH1F
 
+from save_noise_psds      import save_noise_psds
+from get_noise_psds       import get_noise_psds
+
 from utils import create_name_hist, interpolate_parab, draw_hists
 
 class OptimalFilterNxM:
 
-    def __init__( self, dt, t_pre, U, V ):
+    def __init__( self, dt, t_pre, U, V, calc_invV = 'True' ):
 
         # dt is width of the time bins
         # t_pre is the interval of time between the start of the trace and the trigger
@@ -30,6 +33,7 @@ class OptimalFilterNxM:
         self.U = [ [ [ U[ i ][ a ][ n ] for n in self.loop_bins_t ] for a in self.loop_channels ] for i in self.loop_templates ]
         self.N = [ sum( [ sum( U[ i ][ a ] ) for a in self.loop_channels ] ) for i in self.loop_templates ]
 
+        
         U_fft = []
 
         for i in range( len( U ) ):
@@ -38,14 +42,23 @@ class OptimalFilterNxM:
             for a in range( len( U[ i ] ) ):
                 U_fft[ -1 ].append( np.fft.fft( U[ i ][ a ] ).tolist() )
 
-        self.V_inv = [ [ [] for b in self.loop_channels ] for a in self.loop_channels ]
+        if (calc_invV):
 
-        for n in self.loop_bins_t:
-            V_n_inv = np.linalg.inv( [ [ V[ a ][ b ][ n ] for b in self.loop_channels ] for a in self.loop_channels ] )
+            self.V_inv = [ [ [] for b in self.loop_channels ] for a in self.loop_channels ]
 
-            for a in self.loop_channels:
-                for b in self.loop_channels:
-                    self.V_inv[ a ][ b ].append( V_n_inv[ a ][ b ] )
+            for n in self.loop_bins_t:
+                V_n_inv = np.linalg.inv( [ [ V[ a ][ b ][ n ] for b in self.loop_channels ] for a in self.loop_channels ] )
+
+                for a in self.loop_channels:
+                    for b in self.loop_channels:
+                        self.V_inv[ a ][ b ].append( V_n_inv[ a ][ b ] )
+            save_noise_psds(self.V_inv, 'inv_psd.gz')
+
+        if (calc_invV==False): 
+            try:
+                self.V_inv = get_noise_psds('inv_psd.gz')
+            except:
+                print("No inverted covariance matrix to be loaded")
 
         self.F = []
 

@@ -91,19 +91,19 @@ class TemplateGeneratorNxM:
 
         dataS = np.asarray(S)
         dataS = np.sum(dataS, axis=0)
+        dataS = dataS*1E7
         peaks, properties = find_peaks(dataS.transpose(), prominence = 1, width=10)
         width_half = peak_widths(dataS.transpose(), peaks, rel_height=0.5)
         if (np.mean(dataS[0:3000])>np.mean(dataS[3000:10000]) and np.mean(dataS[0:3000])>np.mean(dataS[10000:15000]) and np.mean(dataS[0:3000])>np.mean(dataS[30000:32000])): return False
         if (np.mean(dataS[0:3000]) > 1.05*np.mean(dataS[30000:32000])) : return False 
         if (1.01*np.mean(dataS[0:3000]) < np.mean(dataS[30000:32000])) : return False
-
+        
         if ( len(peaks) == 0 or len(peaks) > 1 or any(width_half)>2000) : return False
 
         #plt.plot(dataS.transpose())
         #plt.plot(peaks, dataS[peaks].transpose(), "xr")
         #plt.show()
 
-        
         tmp_S = np.array(S)
         avg =  np.mean(tmp_S[:,2000:15000],axis=1) 
  
@@ -126,6 +126,7 @@ class TemplateGeneratorNxM:
             return False
 
         r = self.calc_r( amps )
+        
         theta = get_angle_std( self.calc_theta( amps ) )
 
         found = False

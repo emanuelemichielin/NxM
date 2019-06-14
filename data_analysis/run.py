@@ -30,15 +30,15 @@ NUM_BINS_T = 32768
 DT = 0.0016    # Width of the time bins
 T_PRE = 25.728 # Interval of time between the start of the trace and the trigger, note that it is positive
 
-GENERATE_NOISE_PSDS = True
+GENERATE_NOISE_PSDS = False
 PREVIEW_DATA = False
 GENERATE_TEMPLATES = False
-APPLY_FILTERS = False
+APPLY_FILTERS = True
 CHECK = False
 
 PATH = os.environ[ 'PWD' ]
 
-STEP_MONITOR = 20  # Print-outs and drawings each 10 events
+STEP_MONITOR = 1  # Print-outs and drawings each 10 events
 STAT_ESTIMATE = 10 # Estimate the segmentation requiring at least 10 events per bin
 
 #configure_draw()
@@ -53,7 +53,7 @@ def generate_noise_psds( inputfilepath, series , filename_data_noise, filename_n
 
     event_count = 0
 
-    while dr.LoadEvent():
+    while dr.LoadEvent(trigger='BOR'):
         #from here
         trace =  dr.GetTraces()
         dataS1 = np.asarray(trace)
@@ -73,8 +73,8 @@ def generate_noise_psds( inputfilepath, series , filename_data_noise, filename_n
 
     noise_psds = gen.CalculateNoisePSDs()
 
-    #if type( noise_psds ) == list:
-    #    save_noise_psds( noise_psds, filename_noise_psds )
+    if type( noise_psds ) == list:
+        save_noise_psds( noise_psds, filename_noise_psds )
 
     gen.Draw( PATH+'/png' )
 
@@ -93,18 +93,14 @@ def preview_data(  inputfilepath, series, filename_noise_psds,  stat_estimate ):
 
     event_count = 0
 
-    while dr.LoadEvent():
+    while dr.LoadEvent(trigger='Trigger'):
         S = dr.GetTraces()
         dataS = np.asarray(S)
         dataS = np.sum(dataS, axis=0)
+        #after the conversion to A too small number, find_peaks doesn't work
+        dataS = dataS*1E7
         peaks, properties = find_peaks(dataS.transpose(), prominence=1, width=200)
         if (len(peaks) == 0 or len(peaks) > 1) : continue
-        #plt.plot(dataS.transpose())
-        #plt.show()
-        tmp_S = np.array(S)
-        avg =  np.mean(tmp_S[:,0:5000],axis=1) 
-        for i in range(len(S)):
-            S[i] = S[i]-avg[i]
 
          #using scipy wiener filter
         noise_w = np.array([V[a][a] for a in range(len(S))])
@@ -153,7 +149,7 @@ def generate_templates( inputfilepath, series, filename_noise_psds, vec_r_lim, m
 
     event_count = 0
 
-    while dr.LoadEvent():
+    while dr.LoadEvent(trigger='Trigger'):
         gen.IncludeEvent( dr.GetTraces() )
         event_count += 1
 
@@ -179,7 +175,7 @@ def apply_filters( filename_noise_psds, filename_templates, inputfilepath, serie
     man = OFManagerNxM( DT, T_PRE, templates, V, calc_r, calc_theta, E_min, E_max, map_bins_part )
 
     dr = DataReader()
-    dr.OpenFile(  inputfilepath, series, 100 )
+    dr.OpenFile(  inputfilepath, series, 0 )
 
     tm_nxm = tree_manager( 'NxM' )
 
@@ -189,14 +185,14 @@ def apply_filters( filename_noise_psds, filename_templates, inputfilepath, serie
 
     event_count = 0
 
-    while dr.LoadEvent():
+    while dr.LoadEvent(trigger='Trigger'):
         S = dr.GetTraces()
         dataS = np.asarray(S)
         dataS = np.sum(dataS, axis=0)
         if (np.mean(dataS[0:3000])>np.mean(dataS[3000:10000]) and np.mean(dataS[0:3000])>np.mean(dataS[10000:15000]) and np.mean(dataS[0:3000])>np.mean(dataS[30000:32000])): continue
         if (np.mean(dataS[0:3000]) > 1.05*np.mean(dataS[30000:32000])) : continue 
         if (1.05*np.mean(dataS[0:3000]) < np.mean(dataS[30000:32000])) : continue
-
+        dataS = dataS*1E7
         peaks, properties = find_peaks(dataS.transpose(), prominence=1, width=20)
         width_half = peak_widths(dataS.transpose(), peaks, rel_height=0.5)
 
@@ -213,7 +209,7 @@ def apply_filters( filename_noise_psds, filename_templates, inputfilepath, serie
         event_count += 1
 
 
-        if event_count%STEP_MONITOR == 0 and result['E'] > 100 :
+        if event_count%STEP_MONITOR == 0 :
             print('Event', event_count)
             man.Draw( PATH+'/png', event_count )
 
@@ -260,10 +256,10 @@ def check( filename_noise_psds, filename_templates, filename_root ):
     hist.Delete()
 
 # path to directory containing data files
-filepath='/gpfs/slac/staas/fs1/g/supercdms//data/CDMS/SLAC/R52/Raw/09190411_2241'
+filepath='/gpfs/slac/staas/fs1/g/supercdms//data/CDMS/SLAC/R56/Raw/09190602_1927'
  
 # specifies series to be analyzed
-series=["09190411_2241_F000"+str(i)+".mid.gz" for i in range(1,4)] 
+series=["09190602_1927_F0"+str(i)+".mid.gz" for i in range(140,141)] 
 
 if GENERATE_NOISE_PSDS:
     generate_noise_psds(filepath, series, 'data_noise.gz', PATH+'/noise_psds.gz' )
