@@ -10,7 +10,7 @@ from utils import create_name_hist, interpolate_parab, draw_hists
 
 class OptimalFilterNxM:
 
-    def __init__( self, dt, t_pre, U, V, calc_invV = 'True' ):
+    def __init__( self, dt, t_pre, U, V, calc_invV = True ):
 
         # dt is width of the time bins
         # t_pre is the interval of time between the start of the trace and the trigger
@@ -43,7 +43,6 @@ class OptimalFilterNxM:
                 U_fft[ -1 ].append( np.fft.fft( U[ i ][ a ] ).tolist() )
 
         if (calc_invV):
-
             self.V_inv = [ [ [] for b in self.loop_channels ] for a in self.loop_channels ]
 
             for n in self.loop_bins_t:

@@ -32,13 +32,13 @@ T_PRE = 25.728 # Interval of time between the start of the trace and the trigger
 
 GENERATE_NOISE_PSDS = False
 PREVIEW_DATA = False
-GENERATE_TEMPLATES = False
-APPLY_FILTERS = True
+GENERATE_TEMPLATES = True
+APPLY_FILTERS = False
 CHECK = False
 
 PATH = os.environ[ 'PWD' ]
 
-STEP_MONITOR = 1  # Print-outs and drawings each 10 events
+STEP_MONITOR = 1000  # Print-outs and drawings each 10 events
 STAT_ESTIMATE = 10 # Estimate the segmentation requiring at least 10 events per bin
 
 #configure_draw()
@@ -259,7 +259,7 @@ def check( filename_noise_psds, filename_templates, filename_root ):
 filepath='/gpfs/slac/staas/fs1/g/supercdms//data/CDMS/SLAC/R56/Raw/09190602_1927'
  
 # specifies series to be analyzed
-series=["09190602_1927_F0"+str(i)+".mid.gz" for i in range(140,141)] 
+series=["09190602_1927_F0"+str(i)+".mid.gz" for i in range(100,140)] 
 
 if GENERATE_NOISE_PSDS:
     generate_noise_psds(filepath, series, 'data_noise.gz', PATH+'/noise_psds.gz' )

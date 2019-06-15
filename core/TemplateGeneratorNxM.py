@@ -2,6 +2,7 @@ import math
 import numpy as np
 from scipy.signal import find_peaks, wiener, peak_widths
 from matplotlib import pyplot as plt
+from scipy.optimize import curve_fit
 
 from ROOT import TGraph, TH1F, TLine
 
@@ -92,7 +93,7 @@ class TemplateGeneratorNxM:
         dataS = np.asarray(S)
         dataS = np.sum(dataS, axis=0)
         dataS = dataS*1E7
-        peaks, properties = find_peaks(dataS.transpose(), prominence = 1, width=10)
+        peaks, properties = find_peaks(dataS.transpose(), prominence = 1, width=5)
         width_half = peak_widths(dataS.transpose(), peaks, rel_height=0.5)
         if (np.mean(dataS[0:3000])>np.mean(dataS[3000:10000]) and np.mean(dataS[0:3000])>np.mean(dataS[10000:15000]) and np.mean(dataS[0:3000])>np.mean(dataS[30000:32000])): return False
         if (np.mean(dataS[0:3000]) > 1.05*np.mean(dataS[30000:32000])) : return False 
@@ -103,13 +104,30 @@ class TemplateGeneratorNxM:
         #plt.plot(dataS.transpose())
         #plt.plot(peaks, dataS[peaks].transpose(), "xr")
         #plt.show()
+        x = np.linspace(0,15800,15800)
+        p = np.polyfit(x, dataS[0:15800], 0)
+        chi_square = np.sum((np.polyval(p, x) - dataS[0:15800]) ** 2)/15801
+        if (chi_square>12):
+            return False
+
+        x = np.linspace(16300,32500,16200)
+        def fitFunc(x, A, B, k):
+            return (A + B*np.exp(-x*k))
+        init_vals = [3000, 2e11, 200.e-6]
+        try:
+            fitParams, fitCovariances = curve_fit(fitFunc, x, dataS[16300:32500], p0=init_vals)
+        except: return False
+        chi_square = np.sum((fitFunc(x, fitParams[0],fitParams[1],fitParams[2])- dataS[16300:32500]) ** 2)/16200
+        if (chi_square>35):
+            return False
 
         tmp_S = np.array(S)
-        avg =  np.mean(tmp_S[:,2000:15000],axis=1) 
- 
+        avg =  np.mean(tmp_S[:,0:10000],axis=1) 
+
         for i in range(len(S)):
             S[i] = S[i]-avg[i]
-        
+
+
         for a in self.loop_channels:
             S_fft.append( np.fft.fft( S[ a ] ).tolist() )
             #coefs_fft = [ ( 1.0-( self.J[ a ][ n ]/( np.absolute( S_fft[ -1 ][ n ] )**2 ) ) )*S_fft[ -1 ][ n ] for n in self.loop_bins_t ]

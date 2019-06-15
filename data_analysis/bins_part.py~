@@ -1,6 +1,6 @@
 import math
 
-vec_r_lim = [ 1., 2., 2.3, 2.6, 3, 5 ]
+vec_r_lim = [ 1., 2., 2.3, 2.6, 3., 5. ]
 
 mat_theta_lim = [ [ coef*math.pi for coef in [  ] ],
                   [ coef*math.pi for coef in [  ] ], 

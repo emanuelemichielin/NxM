@@ -259,7 +259,7 @@ def check( filename_noise_psds, filename_templates, filename_root ):
 filepath='/gpfs/slac/staas/fs1/g/supercdms//data/CDMS/SLAC/R56/Raw/09190602_1927'
  
 # specifies series to be analyzed
-series=["09190602_1927_F0"+str(i)+".mid.gz" for i in range(140,141)] 
+series=["09190602_1927_F0"+str(i)+".mid.gz" for i in range(140,150)] 
 
 if GENERATE_NOISE_PSDS:
     generate_noise_psds(filepath, series, 'data_noise.gz', PATH+'/noise_psds.gz' )
