@@ -28,6 +28,8 @@
 //gPad->GetUymin() disabled in draw_hists to fix ylim problem (too big)
 
 
+
+//changing negative indices to count from end to beginning, just like python
 int cind(int n, int size){        
     if (n<0){                 
         return size + n;      
@@ -36,16 +38,16 @@ int cind(int n, int size){
      }      
 }  
 
-
+//here the user defines the (r,theta) bins. Not ideal, has to change.
 void define_lims(std::vector<double> &vec_r_lim, std::vector<std::vector<double>> &mat_theta_lim){
     const double pi = 3.14159265358979323846;
 
-    vec_r_lim = std::vector<double> {0 , 10};
-    mat_theta_lim = std::vector<std::vector<double>> {{}};
+    vec_r_lim = std::vector<double> {1.1, 1.55, 2.2};
+    mat_theta_lim = std::vector<std::vector<double>> {{}, {pi*0.05}};
 
     for (int i = 0; i<mat_theta_lim.size(); i++){
         std::vector<double> sym_theta_lims;
-	
+
         for (int j = 0; j<mat_theta_lim[i].size(); j++){
             sym_theta_lims.push_back( -( mat_theta_lim[ i ][ j ]+( 2.0*pi/3.0 ) ) );
             sym_theta_lims.push_back( mat_theta_lim[ i ][ j ]-( 2.0*pi/3.0 )      );
@@ -53,23 +55,25 @@ void define_lims(std::vector<double> &vec_r_lim, std::vector<std::vector<double>
             sym_theta_lims.push_back( mat_theta_lim[ i ][ j ]+( 2.0*pi/3.0 )      );
             sym_theta_lims.push_back( -( mat_theta_lim[ i ][ j ]-( 2.0*pi/3.0 ) ) );
         }
-	
+
         for (int ii = 0; ii<sym_theta_lims.size(); ii++){ 
             mat_theta_lim[i].push_back(sym_theta_lims[ii]);
         }
-	
-        mat_theta_lim[ i ].push_back( pi  );
-	
+
+        mat_theta_lim[ i ].push_back( -pi/3.0 );
+        mat_theta_lim[ i ].push_back( pi/3.0  );
+        mat_theta_lim[ i ].push_back( pi      );
+
         std::sort(mat_theta_lim[i].begin(), mat_theta_lim[i].end());
 
     }
 
+
+
 }
 
 
-
-
-
+//Get angle between -pi and pi
 void get_angle_std(double &ans, double angle){
 
     const double pi = 3.14159265358979323846;
@@ -85,7 +89,7 @@ void get_angle_std(double &ans, double angle){
     ans = angle_std;
 }
 
-
+//check if na angle lies within a range
 void check_angle(bool &ans, double theta, double limit_theta_clockw, double limit_theta_anticw){
     if (limit_theta_anticw > limit_theta_clockw){
         if (theta > limit_theta_clockw && theta <= limit_theta_anticw){
@@ -104,7 +108,7 @@ void check_angle(bool &ans, double theta, double limit_theta_clockw, double limi
 }
 
 
-
+//Calculate difference between theta_anticw and theta_clockw in the ccw direction
 void calculate_delta_angle(double &ans, double theta_clockw, double theta_anticw){
 
     const double pi = 3.14159265358979323846;
@@ -117,6 +121,7 @@ void calculate_delta_angle(double &ans, double theta_clockw, double theta_anticw
 }
 
 
+
 void interpolate_parab(std::vector<double> &ans, double y1, double y2, double y3){
 
     ans[0] = (0.5*(y1+y3))-y2;
@@ -126,7 +131,7 @@ void interpolate_parab(std::vector<double> &ans, double y1, double y2, double y3
 }
 
 
-
+//vector_distribution functions, used to plot events in r,theta space
 void vector_distribution::add(double x, double y){
     list_x.push_back(x);
     list_y.push_back(y);
@@ -150,7 +155,7 @@ void vector_distribution::reset(){
 }
 
 
-
+//FFT function using fftw
 void fft(std::vector<std::complex<double>> &ans, std::vector<std::complex<double>> x){
     int n = x.size();
     fftw_plan p = fftw_plan_dft_1d(n, (fftw_complex*)x.data(), (fftw_complex*)ans.data(), FFTW_FORWARD, FFTW_ESTIMATE);
@@ -158,7 +163,7 @@ void fft(std::vector<std::complex<double>> &ans, std::vector<std::complex<double
     fftw_destroy_plan(p);
 }
 
-
+//Inverse FFT function using fftw
 void ifft(std::vector<std::complex<double>> &ans, std::vector<std::complex<double>> x){
     int n = x.size();
     fftw_plan p = fftw_plan_dft_1d(n, (fftw_complex*)x.data(), (fftw_complex*)ans.data(), FFTW_BACKWARD, FFTW_ESTIMATE);
@@ -169,7 +174,7 @@ void ifft(std::vector<std::complex<double>> &ans, std::vector<std::complex<doubl
     }
 }
 
-
+//invert a comple matrix using lapacke
 void inv(std::vector<std::vector<std::complex<double>>> &ans, std::vector<std::vector<std::complex<double>>> MAT){   //intel math kernel library
 
     int N = MAT.size();
@@ -201,7 +206,7 @@ void inv(std::vector<std::vector<std::complex<double>>> &ans, std::vector<std::v
 
 
 
-
+//invert a real matrix using lapacke
 void inv(std::vector<std::vector<double>> &ans, std::vector<std::vector<double>> MAT){
 
     int N = MAT.size();
@@ -234,7 +239,7 @@ void inv(std::vector<std::vector<double>> &ans, std::vector<std::vector<double>>
 
 
 
-
+//first index of minimum in an array
 int mindex(std::vector<double> A){
     int ans = A[0];
     int ind = 0;
@@ -249,7 +254,7 @@ int mindex(std::vector<double> A){
 }
 
 
-
+//sum functions
 std::complex<double> sum(std::vector<std::complex<double>> A){
     std::complex<double> ans = {0.0, 0.0};
 
@@ -279,10 +284,11 @@ double sum(std::vector<double> A){
 
 // #########################################################       CALC       #########################################################
 
+//calculate r,theta for an event
 
 void calc_r(double &ans, std::vector<double> A){
-  //double sumw = 0.5 * (A[0]);
-    ans = (4.37*A[0])/(A[0]);
+    double sumw = 0.5 * (A[4]+A[5]);
+    ans = (4.37*sumw)/(A[0] + sumw);
 }
 
 void calc_theta(double &ans, std::vector<double> A){
@@ -292,7 +298,6 @@ void calc_theta(double &ans, std::vector<double> A){
     double Y = (0.5 * std::sqrt(3.0) * A[2] - 0.5 * std::sqrt(3.0) * A[3])/sumAr;
 
     ans = std::atan2(Y,X);
-    ans = 0;
 
 }
 
@@ -301,7 +306,7 @@ void calc_theta(double &ans, std::vector<double> A){
 // #########################################################       WIENER       #########################################################
 
 
-
+//weiner filter function
 void filter_weiner(std::vector<double> &ans, std::vector<std::complex<double>> S, std::vector<std::complex<double>> J){
 
     int S_size = S.size();
@@ -509,7 +514,6 @@ void draw_hists(std::vector<TH1F*> hists, std::vector<int> colors,  const char* 
 
         if(log_y==true){
             gPad->SetLogy(1);
-	    gPad->SetLogx(1);
         }
 
         if (hists.size() == 1){
@@ -681,22 +685,23 @@ void draw_graphs(std::vector<TGraph*> graphs, std::vector<int> colors, float dot
 
 }
 
+//////////////////////////////////////////////////////////////////////////////////////////////////////// MISC //////////////////////////////////////////////////////////////////////////////
 
-tree_manager::tree_manager(const char* NAME) : array(4){
+
+//tree manager functions: manages histrograms for t0, E, and chisq to store in a root file
+tree_manager::tree_manager(const char* NAME) : array(3){
     tree = new TTree(NAME, NAME);
     tree->Branch("t0", &array[0], "t0/D");
-    tree->Branch("A", &array[1], "A/D");
-    tree->Branch("chisq", &array[2], "chisq/D");
-    tree->Branch("E", &array[3], "E/D");
+    tree->Branch("chisq", &array[1], "chisq/D");
+    tree->Branch("E", &array[2], "E/D");
 }
 tree_manager::~tree_manager(){
     delete tree;
 }
-void tree_manager::set(double t0, double A, double chisq, double E){
+void tree_manager::set(double t0, double chisq, double E){
     array[0] = t0;
-    array[1] = A;
-    array[2] = chisq;
-    array[3] = E;
+    array[1] = chisq;
+    array[2] = E;
 }
 void tree_manager::Fill(){
     tree->Fill();
@@ -707,7 +712,7 @@ void tree_manager::Write(){
 
 
 
-
+//2D and 3D vector initialization with zeros and given sizes 
 void initialize(std::vector<std::vector<std::vector<std::complex<double>>>> &vect, int a, int b, int c){
     std::vector<std::vector<std::vector<std::complex<double>>>> vect_t(a);
     for (int i = 0; i<a; i++){

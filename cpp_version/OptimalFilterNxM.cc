@@ -16,8 +16,9 @@
 OptimalFilterNxM::OptimalFilterNxM(double DT, double T_PRE, std::vector<std::vector<std::vector<std::complex<double>>>> U, std::vector<std::vector<std::vector<std::complex<double>>>> V) : dt(DT), t_pre(T_PRE), n_trig(std::round(T_PRE/DT)), num_templates(U.size()), num_channels(U[0].size()), num_bins_t(U[0][0].size()), N(num_templates, 0.0) {
 
 
-    result = {{}, {}, {}, {}, {}, {}, {}};
+    result = {{}, {}, {}, {}, {}, {}, {}};   //vector to hold reconstructed values: A0, chisq0, E0, t0, A, chisq, E
 
+     //initializing all multi-dimensional vectors with pre-known sizes
      initialize(UU, num_templates, num_channels, num_bins_t);
      initialize(U_fft, num_templates, num_channels, num_bins_t);
      initialize(V_inv, num_channels, num_channels, num_bins_t) ;
@@ -28,8 +29,10 @@ OptimalFilterNxM::OptimalFilterNxM(double DT, double T_PRE, std::vector<std::vec
      initialize(V_inv_n, num_channels, num_channels);
      initialize(V_n, num_channels, num_channels);
 
-     UU = U;
+     UU = U;   //the templates provided by OFManager in the OptimalFilter object for plotting purposes
 
+
+    //defining multi-dimensional vectors that will be needed in Execute function
     for (int i = 0; i < num_templates; i++){
         for (int a = 0; a < num_channels; a++){
                 N[i] += std::real(sum(U[i][a]));
@@ -37,12 +40,16 @@ OptimalFilterNxM::OptimalFilterNxM(double DT, double T_PRE, std::vector<std::vec
         }
     }
 
+
+    //Storing FFTs of templates provided by OFManager
     for (int i = 0; i < num_templates; i++){
         for (int a = 0; a < num_channels; a++){
             fft(U_fft[i][a], U[i][a]);
         }
     }
-    
+
+
+    //inverting cross-power spectral density matrix
     for (int n = 0; n < num_bins_t; n++){
 
         for (int a = 0; a < num_channels; a++){
@@ -60,6 +67,7 @@ OptimalFilterNxM::OptimalFilterNxM(double DT, double T_PRE, std::vector<std::vec
         }
     }
 
+    //defining optimal filter (recall for single channel single template, it is conjugate of template / PSD)
     for (int i = 0; i < num_templates; i++){
         for (int a = 0; a < num_channels; a++){
             for (int b = 0; b < num_channels; b++){
@@ -72,6 +80,8 @@ OptimalFilterNxM::OptimalFilterNxM(double DT, double T_PRE, std::vector<std::vec
         }
     }
 
+
+    //initializing design matrix
     for (int i = 0; i < num_templates; i++){
         for (int j = 0; j < num_templates; j++){
 
@@ -90,7 +100,7 @@ OptimalFilterNxM::OptimalFilterNxM(double DT, double T_PRE, std::vector<std::vec
     }
 
 
-    inv(P_inv, P);
+    inv(P_inv, P);  //inverting design matrix
 
 
 
@@ -101,10 +111,10 @@ void OptimalFilterNxM::reset(){
 }
 
 
-
+//function to execute optimal filter
 void OptimalFilterNxM::Execute(std::vector<std::vector<std::complex<double>>> S){
 
-    reset();        //resetting result
+    reset();        //resetting result from previous use of this filter object
     
     
     std::vector<std::complex<double>> IFFT(num_bins_t);
@@ -242,7 +252,7 @@ void OptimalFilterNxM::Execute(std::vector<std::vector<std::complex<double>>> S)
 }
 
 
-
+//Draw raw event with reconstructed pulse
 void OptimalFilterNxM::Draw(std::string path, int event_count){
     std::vector<TH1F*> hists(2);
 
@@ -268,6 +278,7 @@ void OptimalFilterNxM::Draw(std::string path, int event_count){
 
     std::vector<double> AU(num_templates);
     
+
     for (int a = 0; a < num_channels; a++){
         for (int n = 0; n < num_bins_t; n++){
 

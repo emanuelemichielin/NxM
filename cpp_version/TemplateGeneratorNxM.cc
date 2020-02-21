@@ -16,6 +16,8 @@
 
 
 
+
+
 TemplateGeneratorNxM::TemplateGeneratorNxM(std::vector<std::vector<std::vector<std::complex<double>>>> V, double E_MIN, double E_MAX, std::vector<double> vec_r_lim, std::vector<std::vector<double>> mat_theta_lim) : len_t_lim(mat_theta_lim.size()), len_r_lim(vec_r_lim.size()), num_channels(V.size()), num_bins_t(V[0][0].size()), E_min(E_MIN), E_max(E_MAX) {
 
     initialize(J, num_channels, num_bins_t);
@@ -23,7 +25,7 @@ TemplateGeneratorNxM::TemplateGeneratorNxM(std::vector<std::vector<std::vector<s
 
     for (int a = 0; a < num_channels; a++){
         for (int n = 0; n < num_bins_t; n++){
-            J[a][n] = V[a][a][n];
+            J[a][n] = V[a][a][n];               //auto-power  spectral densities (diagonals of cross-power spectral density matrix)
         }
     }
 
@@ -33,22 +35,22 @@ TemplateGeneratorNxM::TemplateGeneratorNxM(std::vector<std::vector<std::vector<s
 
     for (int a = 0; a < num_channels; a++){
         for (int n = 0; n < num_bins_t; n++){
-            cumul_S_fft_0[a][n] = 0.0;
+            cumul_S_fft_0[a][n] = 0.0;        //a 2D vector of zeros that will be appended for each template, placeholder for all events included in a template's production
         }
     }
 
+
+    //initializing cumul_S_fft and map_bins_part, described in the header file of this class
     int len_t_lim_i;
     for (int i = 0; i < len_t_lim; i++){
-      
         len_t_lim_i = mat_theta_lim[i].size();
-	std::cout<<len_t_lim<<std::endl;
-	std::cout<<len_t_lim_i<<std::endl;
                 
         if (i>0){
 
             std::vector<std::vector<std::vector<double>>> temp { {{vec_r_lim[i-1]}}, {{vec_r_lim[i]}}, {} };
 
             map_bins_part.push_back(temp);
+
 
             for (int j = 0; j< len_t_lim_i; j++){
                 if(j==0){
@@ -103,6 +105,7 @@ TemplateGeneratorNxM::TemplateGeneratorNxM(std::vector<std::vector<std::vector<s
 }
 
 
+//function to include an event in the creation of templates (we include all events in the "calibration sample")
 bool TemplateGeneratorNxM::IncludeEvent(std::vector<std::vector<std::complex<double>>> S){
     std::vector<std::vector<std::complex<double>>> S_fft;
     initialize(S_fft, num_channels, num_bins_t);
@@ -127,12 +130,14 @@ bool TemplateGeneratorNxM::IncludeEvent(std::vector<std::vector<std::complex<dou
         }
     }
 
+
+    //pre-construction of the quantities we want to reconstruct
     double E = 0.0;
 
     for (int a = 0; a < num_channels; a++){
         E += amps[a];
     }
-
+    
     if (E<E_min || E>E_max){
         return false;
     }else{
@@ -143,9 +148,9 @@ bool TemplateGeneratorNxM::IncludeEvent(std::vector<std::vector<std::complex<dou
         calc_theta(theta, amps);
         get_angle_std(theta, theta);
 
-	
         bool found = false;
 
+        //searching for all bins (user-defined or otherwise) that the included event lies within
         for(int i = 0; i < map_bins_part.size(); i++){
             if (r > map_bins_part[i][0][0][0] && r < map_bins_part[i][1][0][0]){
                 for(int j = 0; j < map_bins_part[i][2].size(); j++){
@@ -155,13 +160,13 @@ bool TemplateGeneratorNxM::IncludeEvent(std::vector<std::vector<std::complex<dou
                         int k = std::round(map_bins_part[i][2][j][2]);
                         for (int a = 0; a < num_channels; a++){
                             for (int n = 0; n < num_bins_t; n++){
-                                cumul_S_fft[k][a][n] += S_fft[a][n];
+                                cumul_S_fft[k][a][n] += S_fft[a][n];   //including event in average of traces (templates)
                             }
                         }
                         event_counts[k] += 1;
                         found = true;
 
-                        vector_distributions[k].add(theta,r);
+                        vector_distributions[k].add(theta,r);           //discussed in header file of this class
                     }
                 }
             }
@@ -176,7 +181,7 @@ bool TemplateGeneratorNxM::IncludeEvent(std::vector<std::vector<std::complex<dou
 }
 
 
-
+//get generated templates
 void TemplateGeneratorNxM::GetTemplates(std::vector<std::vector<std::vector<std::complex<double>>>> &ans){
 
     std::vector<std::complex<double>> IFFT(num_bins_t);
@@ -193,7 +198,7 @@ void TemplateGeneratorNxM::GetTemplates(std::vector<std::vector<std::vector<std:
                     TEMPLATE[a][n] = {std::real(IFFT[n])/((double)event_counts[i]), 0.0};
                 }
 	        }
-            ans.push_back(TEMPLATE);    
+            ans.push_back(TEMPLATE);   //only save templates which have events in them   
             
         }
     }
@@ -202,7 +207,7 @@ void TemplateGeneratorNxM::GetTemplates(std::vector<std::vector<std::vector<std:
 
 
 
-
+//get map_bins_part that corresponds to the selected templates in the function above.
 void TemplateGeneratorNxM::GetMapBinsPart(std::vector<std::vector<std::vector<std::vector<double>>>> &map_bins_p){
 
     int template_count = 0;
@@ -226,6 +231,8 @@ void TemplateGeneratorNxM::GetMapBinsPart(std::vector<std::vector<std::vector<st
 }
 
 
+
+//Draw calibration set in (r,theta) space, and bins for all possible optimal filters. Also draw some templates.
 void TemplateGeneratorNxM::Draw(std::string path){
 
     std::string filename;
@@ -254,7 +261,7 @@ void TemplateGeneratorNxM::Draw(std::string path){
 
     std::vector<double> limits_x {-pi, pi};
     std::vector<double> limits_y {map_bins_part[0][0][0][0], map_bins_part[map_bins_part.size()-1][1][0][0]};
-
+	
     std::vector<TLine*> lines;
 
     double r_bot, r_top, theta_clockw, theta_anticw;

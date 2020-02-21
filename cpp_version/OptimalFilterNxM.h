@@ -1,3 +1,5 @@
+//this class is the optimal filter. An object of this class is given templates by the OFManager and it executes the OF on an event.
+
 #include <complex>
 #include <vector>
 
@@ -15,7 +17,7 @@ class OptimalFilterNxM{
     double t_pre;
     int n_trig;
 
-    int num_templates;
+    int num_templates;     //number of templates SPECIFIC to this optimal filter object. Contrast with num_templates in OFManagerNxM object.
     int num_channels;
     int num_bins_t;
 
@@ -23,8 +25,8 @@ class OptimalFilterNxM{
     std::vector<std::vector<std::vector<std::complex<double>>>> UU;
     std::vector<std::vector<std::vector<std::complex<double>>>> U_fft;
     std::vector<std::vector<std::vector<std::complex<double>>>> V_inv;
-    std::vector<std::vector<std::vector<std::complex<double>>>> F;
-    std::vector<std::vector<double>> P;
+    std::vector<std::vector<std::vector<std::complex<double>>>> F;  //optimal filter (recall for single channel single template, it is conjugate of template / PSD)
+    std::vector<std::vector<double>> P;              ///design matrix
     std::vector<std::vector<double>> P_inv;
     std::vector<std::vector<std::complex<double>>> S_fft;
 

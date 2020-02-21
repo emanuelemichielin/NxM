@@ -38,7 +38,7 @@ class tree_manager{
     public:
     tree_manager(const char* NAME);
     ~tree_manager();
-    void set(double t0, double A, double chisq, double E);
+    void set(double t0, double chisq, double E);
     void Fill();
     void Write();
 };

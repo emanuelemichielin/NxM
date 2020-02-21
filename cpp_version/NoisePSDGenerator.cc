@@ -34,6 +34,7 @@ NoisePSDGenerator::NoisePSDGenerator(int NUM_CHANNELS, int NUM_BINS_T) : num_cha
 }
 
 
+//include a trace in the calculation of the cross-power spectral density matrix
 void NoisePSDGenerator::IncludeEvent(std::vector<std::vector<std::complex<double>>> S){
 
     std::vector<std::vector<std::complex<double>>> S_fft;
@@ -45,18 +46,19 @@ void NoisePSDGenerator::IncludeEvent(std::vector<std::vector<std::complex<double
     
     for (int a = 0; a < num_channels; a++){
         for (int b = 0; b < num_channels; b++){
-            for (int n = 1; n < num_bins_t; n++){
+            for (int n = 0; n < num_bins_t; n++){
                 cumul_V[a][b][n] += std::conj(S_fft[a][n]) * S_fft[b][n];
             }
         }
     }
+
     event_count += 1; 
 
 }
 
 
 
-
+//calculate and return cross-power spectral density matrix
 void NoisePSDGenerator::CalculateNoisePSDs(std::vector<std::vector<std::vector<std::complex<double>>>> &ans){
     if (event_count == 0){
         std::cout << "No Events Loaded in PSD generator" << std::endl;
@@ -74,7 +76,7 @@ void NoisePSDGenerator::CalculateNoisePSDs(std::vector<std::vector<std::vector<s
     }
 }
 
-
+//draw each row of the cross-power spectral density matrix on separate graphs
 void NoisePSDGenerator::Draw(std::string path){
     
     std::string filename;
@@ -87,7 +89,6 @@ void NoisePSDGenerator::Draw(std::string path){
 
     std::vector<int> B(num_channels);
 
-    
     for (int a = 0; a < num_channels; a++){
 
         hists[a] = new TH1F(create_name_hist(), "", (num_bins_t+2)/2, 0.0, (float)((num_bins_t+2)/2));
@@ -95,19 +96,16 @@ void NoisePSDGenerator::Draw(std::string path){
         B[a] = 2+a;
     }
 
-    std::cout<<  std::abs(noise_psds[0][1][100]) <<std::endl;
-    std::cout<<  std::abs(noise_psds[1][0][100]) <<std::endl;
-
     for (int a = 0; a < num_channels; a++){
         for (int b = 0; b < num_channels; b++){
-            for (int n = 1; n < num_bins_t; n++){
+            for (int n = 0; n < num_bins_t; n++){
                 hists[b]->SetBinContent(n+1, std::abs(noise_psds[a][b][n]));
             }
         } 
     
         filename.clear();
-	filename = path+"/NoisePSDGenerator"+"_spec_"+std::to_string(a+1)+".png";
-        draw_hists(hists, B, "Frequency_(bin)", "", filename, true);
+	    filename = path+"/NoisePSDGenerator"+"_spec_"+std::to_string(a+1)+".png";
+        draw_hists(hists, B, "Frequency_(bin)", "", filename);
 
         for (int ii = 0; ii <hists.size(); ii++){
             hists[ii]->Reset();                 

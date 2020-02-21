@@ -1,3 +1,6 @@
+//this class generates Noise PSDs (cross-power spectral density matrix in the frequenncy domain)
+
+
 #include <complex>
 #include <vector>
     
@@ -10,8 +13,8 @@ class NoisePSDGenerator{
 
     public:
 
-    int num_channels;
-    int num_bins_t;
+    int num_channels;   //number of channels
+    int num_bins_t;     //number of time bins
 
     std::vector<std::vector<std::vector<std::complex<double>>>> cumul_V;
 
